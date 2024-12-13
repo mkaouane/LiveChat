@@ -11,9 +11,8 @@ export const loadRoutes = (fastify: FastifyCustomInstance) => {
   for (const route of routes) {
     const [[prefix, fastifyRoutes]] = Object.entries(route);
     //@ts-ignore
-    fastify.register(fastifyRoutes(fastify.io), { prefix });
+    fastify.register(fastifyRoutes(fastify.io), { prefix: `/livechat${prefix}` });
     const routeName = startCase(prefix.substring(1).replaceAll('/', ' '));
-    console.log('routename: ' + routeName);
     logger.info(`[REST] ${routeName} Routes loaded (${prefix})`);
   }
 };
