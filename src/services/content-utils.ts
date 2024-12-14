@@ -10,9 +10,62 @@ function getFileTypeWithRegex(url) {
   return extension ? extension.toLowerCase() : 'No extension found';
 }
 
+const isTikTokUrl = (url: string): boolean => {
+  return url.includes('tiktok.com');
+};
+
+async function getTikTokVideoInfo(url: string) {
+  try {
+    // Utiliser une API publique simple pour TikTok
+    const apiUrl = `https://api.tiklydown.eu/api/download?url=${encodeURIComponent(url)}`;
+    const response = await fetch(apiUrl);
+    const data = await response.json();
+
+    if (data.video) {
+      return {
+        contentType: 'video/mp4',
+        mediaDuration: data.duration || 30, // Utiliser la durée fournie par l'API ou une durée par défaut
+        directUrl: data.video,
+      };
+    }
+  } catch (error) {
+    // Silently handle error and try backup API
+    try {
+      const apiUrl2 = `https://www.tikwm.com/api/?url=${encodeURIComponent(url)}`;
+      const response = await fetch(apiUrl2);
+      const data = await response.json();
+
+      if (data.data && data.data.play) {
+        return {
+          contentType: 'video/mp4',
+          mediaDuration: data.data.duration || 30,
+          directUrl: data.data.play,
+        };
+      }
+    } catch {
+      // If both APIs fail, return null
+      return null;
+    }
+  }
+  return null;
+}
+
 export const getContentInformationsFromUrl = async (url: string) => {
   let contentType;
   let mediaDuration;
+  const directUrl = url;
+
+  // Check if it's a TikTok URL first
+  if (isTikTokUrl(url)) {
+    const tiktokInfo = await getTikTokVideoInfo(url);
+    if (tiktokInfo) {
+      return {
+        contentType: tiktokInfo.contentType,
+        mediaDuration: tiktokInfo.mediaDuration,
+        directUrl: tiktokInfo.directUrl,
+      };
+    }
+  }
 
   // First try to get it with URL
   try {
@@ -43,8 +96,8 @@ export const getContentInformationsFromUrl = async (url: string) => {
   } catch (error) {}
 
   try {
-    mediaDuration = await getVideoDurationInSeconds(url, 'ffprobe');
+    mediaDuration = await getVideoDurationInSeconds(url);
   } catch (error) {}
 
-  return { contentType, mediaDuration };
+  return { contentType, mediaDuration, directUrl };
 };

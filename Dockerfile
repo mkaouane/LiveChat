@@ -1,8 +1,16 @@
 FROM node:20-alpine
 
-# Install ffmpeg
-RUN apk update
-RUN apk add ffmpeg python3 alpine-sdk
+# Install ffmpeg and other dependencies
+RUN apk update && \
+    apk add --no-cache \
+    ffmpeg \
+    python3 \
+    alpine-sdk \
+    pixman-dev \
+    cairo-dev \
+    pango-dev \
+    jpeg-dev \
+    giflib-dev
 
 # Set environment variables for configuration
 ENV PORT=3000
@@ -13,8 +21,12 @@ LABEL maintainer="Quentin Laffont <contact@qlaffont.com>"
 
 RUN npm install pnpm -g
 
-# Copy package.json and package-lock.json to the working directory
+# Create app directory
+WORKDIR /usr/src/app
+
+# Copy package files
 COPY package*.json ./
+COPY pnpm-lock.yaml ./
 
 # Install app dependencies
 RUN pnpm install

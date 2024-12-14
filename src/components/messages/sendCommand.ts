@@ -22,7 +22,7 @@ export const sendCommand = () => ({
         .setRequired(false),
     ),
   handler: async (interaction: CommandInteraction) => {
-    const url = interaction.options.get(rosetty.t('sendCommandOptionURL')!)?.value;
+    let url = interaction.options.get(rosetty.t('sendCommandOptionURL')!)?.value as string;
     const text = interaction.options.get(rosetty.t('sendCommandOptionText')!)?.value;
     const media = interaction.options.get(rosetty.t('sendCommandOptionMedia')!)?.attachment?.proxyURL;
     let mediaContentType = interaction.options.get(rosetty.t('sendCommandOptionMedia')!)?.attachment?.contentType;
@@ -31,6 +31,10 @@ export const sendCommand = () => ({
     let additionalContent;
     if ((!mediaContentType || !mediaDuration) && (media || url)) {
       additionalContent = await getContentInformationsFromUrl((media || url) as string);
+      // Use the direct URL if provided (for TikTok videos)
+      if (additionalContent?.directUrl) {
+        url = additionalContent.directUrl;
+      }
     }
 
     if ((mediaContentType === undefined || mediaContentType === null) && additionalContent?.contentType) {
