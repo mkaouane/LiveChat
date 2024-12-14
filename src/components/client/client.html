@@ -96,12 +96,9 @@
       if (timeout) {
         clearTimeout(timeout);
       }
-      if (message.duration) {
-        timeout = setTimeout(() => {
-          displayMessage({})
-        }, (message.duration * 1000) + 100);
-      }
 
+      var content = JSON.parse(message.content || '{}');
+      
       var elementMessage = document.getElementById('message-block');
       var elementBlock = document.getElementById('author-block');
       var elementText = document.getElementById('message-text');
@@ -110,11 +107,14 @@
       elementText.style.display = 'none';
 
       displayAuthor(message.author, message.authorImage);
+      displayText(content.text);
+      displayContent(content);
 
-      var data = JSON.parse(message.content || '{}');
-
-      displayText(data.text);
-      displayContent(data);
+      if (message.duration) {
+        timeout = setTimeout(() => {
+          displayMessage({})
+        }, (message.duration * 1000) + 100);
+      }
     }
 
     document.addEventListener("DOMContentLoaded", function () {

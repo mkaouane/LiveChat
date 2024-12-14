@@ -2,6 +2,9 @@ import fetch from 'node-fetch';
 import { getVideoDurationInSeconds } from 'get-video-duration';
 import { fileTypeFromBuffer } from 'file-type';
 import mime from 'mime-types';
+import { writeFile, unlink } from 'fs/promises';
+import { join } from 'path';
+import { tmpdir } from 'os';
 
 function getFileTypeWithRegex(url) {
   const regex = /(?:\.([^.]+))?$/; // Regular expression to capture file extension
@@ -14,36 +17,60 @@ const isTikTokUrl = (url: string): boolean => {
   return url.includes('tiktok.com');
 };
 
+async function downloadAndGetDuration(url: string): Promise<number | null> {
+  const tempFile = join(tmpdir(), `tiktok-${Date.now()}.mp4`);
+  try {
+    const response = await fetch(url);
+    const buffer = await response.arrayBuffer();
+    await writeFile(tempFile, Buffer.from(buffer));
+    
+    const duration = await getVideoDurationInSeconds(tempFile);
+    console.log(duration);
+    return duration;
+  } catch (error) {
+    return null;
+  } finally {
+    try {
+      await unlink(tempFile);
+    } catch {
+      // Ignore cleanup errors
+    }
+  }
+}
+
 async function getTikTokVideoInfo(url: string) {
   try {
-    // Utiliser une API publique simple pour TikTok
     const apiUrl = `https://api.tiklydown.eu/api/download?url=${encodeURIComponent(url)}`;
     const response = await fetch(apiUrl);
     const data = await response.json();
-
+    
     if (data.video) {
+      // Essayer d'obtenir la durée réelle
+      const duration = await downloadAndGetDuration(data.video);
+      
       return {
         contentType: 'video/mp4',
-        mediaDuration: data.duration || 30, // Utiliser la durée fournie par l'API ou une durée par défaut
-        directUrl: data.video,
+        mediaDuration: duration || data.duration || 30,
+        directUrl: data.video
       };
     }
   } catch (error) {
-    // Silently handle error and try backup API
     try {
       const apiUrl2 = `https://www.tikwm.com/api/?url=${encodeURIComponent(url)}`;
       const response = await fetch(apiUrl2);
       const data = await response.json();
-
+      
       if (data.data && data.data.play) {
+        // Essayer d'obtenir la durée réelle
+        const duration = await downloadAndGetDuration(data.data.play);
+        
         return {
           contentType: 'video/mp4',
-          mediaDuration: data.data.duration || 30,
-          directUrl: data.data.play,
+          mediaDuration: duration || data.data.duration || 30,
+          directUrl: data.data.play
         };
       }
     } catch {
-      // If both APIs fail, return null
       return null;
     }
   }
