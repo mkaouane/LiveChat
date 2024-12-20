@@ -1,10 +1,10 @@
+import { writeFile, unlink } from 'fs/promises';
+import { join } from 'path';
+import { tmpdir } from 'os';
 import fetch from 'node-fetch';
 import { getVideoDurationInSeconds } from 'get-video-duration';
 import { fileTypeFromBuffer } from 'file-type';
 import mime from 'mime-types';
-import { writeFile, unlink } from 'fs/promises';
-import { join } from 'path';
-import { tmpdir } from 'os';
 
 function getFileTypeWithRegex(url) {
   const regex = /(?:\.([^.]+))?$/; // Regular expression to capture file extension
@@ -17,15 +17,27 @@ const isTikTokUrl = (url: string): boolean => {
   return url.includes('tiktok.com');
 };
 
+// const isYouTubeUrl = (url: string): boolean => {
+//   return url.includes('youtube.com');
+// };
+
+const transformYouTubeUrl = (url: string): string => {
+  // Check if it's a YouTube Shorts URL
+  const shortsMatch = url.match(/youtube\.com\/shorts\/([^/?]+)/);
+  if (shortsMatch) {
+    return `https://www.youtube.com/watch?v=${shortsMatch[1]}`;
+  }
+  return url;
+};
+
 async function downloadAndGetDuration(url: string): Promise<number | null> {
   const tempFile = join(tmpdir(), `tiktok-${Date.now()}.mp4`);
   try {
     const response = await fetch(url);
     const buffer = await response.arrayBuffer();
     await writeFile(tempFile, Buffer.from(buffer));
-    
+
     const duration = await getVideoDurationInSeconds(tempFile);
-    console.log(duration);
     return duration;
   } catch (error) {
     return null;
@@ -43,15 +55,15 @@ async function getTikTokVideoInfo(url: string) {
     const apiUrl = `https://api.tiklydown.eu/api/download?url=${encodeURIComponent(url)}`;
     const response = await fetch(apiUrl);
     const data = await response.json();
-    
+
     if (data.video) {
       // Essayer d'obtenir la durée réelle
       const duration = await downloadAndGetDuration(data.video);
-      
+
       return {
         contentType: 'video/mp4',
         mediaDuration: duration || data.duration || 30,
-        directUrl: data.video
+        directUrl: data.video,
       };
     }
   } catch (error) {
@@ -59,15 +71,15 @@ async function getTikTokVideoInfo(url: string) {
       const apiUrl2 = `https://www.tikwm.com/api/?url=${encodeURIComponent(url)}`;
       const response = await fetch(apiUrl2);
       const data = await response.json();
-      
+
       if (data.data && data.data.play) {
         // Essayer d'obtenir la durée réelle
         const duration = await downloadAndGetDuration(data.data.play);
-        
+
         return {
           contentType: 'video/mp4',
           mediaDuration: duration || data.data.duration || 30,
-          directUrl: data.data.play
+          directUrl: data.data.play,
         };
       }
     } catch {
@@ -78,13 +90,16 @@ async function getTikTokVideoInfo(url: string) {
 }
 
 export const getContentInformationsFromUrl = async (url: string) => {
+  // Transform YouTube Shorts URL if needed
+  const transformedUrl = transformYouTubeUrl(url);
+
   let contentType;
   let mediaDuration;
-  const directUrl = url;
+  const directUrl = transformedUrl;
 
   // Check if it's a TikTok URL first
-  if (isTikTokUrl(url)) {
-    const tiktokInfo = await getTikTokVideoInfo(url);
+  if (isTikTokUrl(transformedUrl)) {
+    const tiktokInfo = await getTikTokVideoInfo(transformedUrl);
     if (tiktokInfo) {
       return {
         contentType: tiktokInfo.contentType,
@@ -96,7 +111,7 @@ export const getContentInformationsFromUrl = async (url: string) => {
 
   // First try to get it with URL
   try {
-    const fileExt = getFileTypeWithRegex(url);
+    const fileExt = getFileTypeWithRegex(transformedUrl);
 
     const tmpContentType = mime.lookup(fileExt);
 
@@ -108,7 +123,7 @@ export const getContentInformationsFromUrl = async (url: string) => {
   // If it doesn't work with URL, try with fetch
   try {
     if (!contentType) {
-      const file = await fetch(url);
+      const file = await fetch(transformedUrl);
 
       contentType = file.headers.get('Content-Type');
 
@@ -123,7 +138,7 @@ export const getContentInformationsFromUrl = async (url: string) => {
   } catch (error) {}
 
   try {
-    mediaDuration = await getVideoDurationInSeconds(url);
+    mediaDuration = await getVideoDurationInSeconds(transformedUrl);
   } catch (error) {}
 
   return { contentType, mediaDuration, directUrl };

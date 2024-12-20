@@ -17,7 +17,7 @@ import { talkCommand } from '../components/messages/talkCommand';
 import { hideTalkCommand } from '../components/messages/hidetalkCommand';
 import { clientCommand } from '../components/discord/clientCommand';
 import { helpCommand } from '../components/discord/helpCommand';
-import { infoCommand } from '../components/discord/infoCommand';
+// import { infoCommand } from '../components/discord/infoCommand';
 import { setDefaultTimeCommand } from '../components/discord/setDefaultTimeCommand';
 import { setDisplayMediaFullCommand } from '../components/discord/setDisplayFullCommand';
 import { setMaxTimeCommand } from '../components/discord/setMaxTimeCommand';
@@ -82,7 +82,7 @@ const loadDiscordCommands = async (fastify: FastifyCustomInstance) => {
       talkCommand(),
       clientCommand(),
       helpCommand(),
-      infoCommand(),
+      // infoCommand(),
       setDefaultTimeCommand(),
       setDisplayMediaFullCommand(),
       setMaxTimeCommand(),

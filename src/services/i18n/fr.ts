@@ -9,7 +9,7 @@ export const frLang: typeof enLang = {
   notAllowed: 'Action non autorisée !',
 
   discordCommands: 'Chargement des commandes Discord',
-  discordCommandLoaded: 'Commande chargée : /{{command}} ✅',
+  discordCommandLoaded: 'Commande chargée : /{{command}}',
   discordInvite: 'Pour inviter le bot : {{link}}',
   discordBotReady: 'En ligne ! Connecté en tant que {{username}}',
 
@@ -36,7 +36,7 @@ export const frLang: typeof enLang = {
   sendCommandAnswer: 'Contenu reçu ! Il sera bientôt joué !',
 
   hideSendCommand: 'cmsg',
-  hideSendCommandDescription: 'Envoyer du contenu sur le stream (mais caché 😈)',
+  hideSendCommandDescription: 'Envoyer du contenu sur le stream (mais caché )',
   hideSendCommandOptionURL: 'lien',
   hideSendCommandOptionURLDescription: 'Lien du contenu sur le stream',
   hideSendCommandOptionText: 'texte',
@@ -54,7 +54,7 @@ export const frLang: typeof enLang = {
   talkCommandAnswer: 'Contenu reçu ! Il sera bientôt joué !',
 
   hideTalkCommand: 'cdire',
-  hideTalkCommandDescription: 'Demandez à un bot de dire quelque chose (mais caché 😈)',
+  hideTalkCommandDescription: 'Demandez à un bot de dire quelque chose (mais caché )',
   hideTalkCommandOptionText: 'texte',
   hideTalkCommandOptionTextDescription: 'Texte à afficher',
   hideTalkCommandOptionVoice: 'dire',
@@ -62,8 +62,7 @@ export const frLang: typeof enLang = {
   hideTalkCommandAnswer: 'Contenu reçu ! Il sera bientôt joué !',
 
   setDefaultTimeCommand: 'config-defaut',
-  setDefaultTimeCommandDescription:
-    "Définir le temps par défaut pour l'affichage (Par défaut : 5 seconds) ",
+  setDefaultTimeCommandDescription: "Définir le temps par défaut pour l'affichage (Par défaut : 5 seconds) ",
   setDefaultTimeCommandOptionText: 'nombre',
   setDefaultTimeCommandOptionTextDescription: 'Nombre de seconds',
   setDefaultTimeCommandAnswer: 'Le temps par défaut défini !',

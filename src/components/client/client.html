@@ -93,6 +93,7 @@
 
     var timeout;
     function displayMessage(message) {
+      // Clear any existing timeout
       if (timeout) {
         clearTimeout(timeout);
       }
@@ -110,10 +111,68 @@
       displayText(content.text);
       displayContent(content);
 
+      // Log the initial message duration
+      console.log('Initial message duration:', message.duration);
+
+      // If media is present and duration is specified
       if (message.duration) {
-        timeout = setTimeout(() => {
-          displayMessage({})
-        }, (message.duration * 1000) + 100);
+        let displayDuration = message.duration;
+
+        // Try to get the video element
+        const mediaPlayer = document.getElementById('message-player');
+        if (mediaPlayer) {
+          const videoElement = mediaPlayer.querySelector('video');
+          
+          if (videoElement) {
+            // Function to handle video duration
+            const handleVideoDuration = () => {
+              // If video duration is available and valid
+              if (videoElement.duration && videoElement.duration > 0) {
+                // Use the shorter of the two durations
+                displayDuration = Math.min(message.duration, videoElement.duration);
+                
+                console.log('Actual video duration:', videoElement.duration);
+                console.log('Calculated display duration:', displayDuration);
+
+                // Set timeout based on actual video duration
+                timeout = setTimeout(() => {
+                  console.log('Removing media after:', displayDuration, 'seconds');
+                  displayMessage({});
+                }, Math.floor(displayDuration * 1000) + 100);
+              }
+            };
+
+            // If metadata is already loaded
+            if (videoElement.readyState >= 1) {
+              handleVideoDuration();
+            } else {
+              // Wait for metadata to load
+              videoElement.addEventListener('loadedmetadata', handleVideoDuration);
+            }
+
+            // Fallback timeout if duration is not detected
+            setTimeout(() => {
+              if (!timeout) {
+                console.log('Fallback timeout triggered');
+                timeout = setTimeout(() => {
+                  displayMessage({});
+                }, Math.floor(message.duration * 1000) + 100);
+              }
+            }, 2000);
+          } else {
+            // Fallback if no video element found
+            console.log('No video element found, using default duration');
+            timeout = setTimeout(() => {
+              displayMessage({});
+            }, Math.floor(message.duration * 1000) + 100);
+          }
+        } else {
+          // Fallback if no media player
+          console.log('No media player found, using default duration');
+          timeout = setTimeout(() => {
+            displayMessage({});
+          }, Math.floor(message.duration * 1000) + 100);
+        }
       }
     }
 
