@@ -44,12 +44,12 @@
     }
 
     function generateAudioVideo(src, displayFull) {
-      return '<media-player id="message-player" ' + (displayFull ? "class='aspect-auto w-[100vw] h-[100vh]'" : '') + ' src="' + src + '" autoplay controls>' +
-        '<media-provider></media-provider>' +
-        '<media-audio-layout></media-audio-layout>' +
-        '<media-video-layout></media-video-layout>' +
-        '</media-player>';
-    }
+  return '<media-player id="message-player" ' + (displayFull ? "class='aspect-auto w-[100vw] h-[100vh]'" : '') + ' src="' + src + '" autoplay muted controls>' +
+    '<media-provider></media-provider>' +
+    '<media-audio-layout></media-audio-layout>' +
+    '<media-video-layout></media-video-layout>' +
+    '</media-player>';
+}
 
     function displayAuthor(authorUsername, authorPictureURL) {
       var elementBlock = document.getElementById('author-block');
@@ -78,18 +78,37 @@
     }
 
     function displayContent(data) {
-      var element = document.getElementById('message-block');
+  var element = document.getElementById('message-block');
 
-      element.innerHTML = '';
+  element.innerHTML = '';
 
-      if (data.mediaContentType) {
-        if (data.mediaContentType.indexOf('image') === 0) {
-          element.innerHTML = generateImg(data.media || data.url, data.displayFull);
-        } else {
-          element.innerHTML = generateAudioVideo(data.media || data.url, data.displayFull);
+  if (data.mediaContentType) {
+    console.log('🎬 Displaying media:', {
+      contentType: data.mediaContentType,
+      url: data.media || data.url,
+      displayFull: data.displayFull
+    });
+    
+    if (data.mediaContentType.indexOf('image') === 0) {
+      element.innerHTML = generateImg(data.media || data.url, data.displayFull);
+    } else {
+      element.innerHTML = generateAudioVideo(data.media || data.url, data.displayFull);
+      
+      // Ajouter un listener pour déboguer
+      setTimeout(() => {
+        const player = document.getElementById('message-player');
+        if (player) {
+          console.log('🎮 Media player created:', player);
+          console.log('🔗 Player src:', player.src);
+          
+          player.addEventListener('loadstart', () => console.log('📡 Load started'));
+          player.addEventListener('canplay', () => console.log('▶️ Can play'));
+          player.addEventListener('error', (e) => console.log('❌ Player error:', e));
         }
-      }
+      }, 100);
     }
+  }
+}
 
     var timeout;
     function displayMessage(message) {

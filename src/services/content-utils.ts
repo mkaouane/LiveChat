@@ -51,38 +51,34 @@ async function downloadAndGetDuration(url: string): Promise<number | null> {
 }
 
 async function getTikTokVideoInfo(url: string) {
+  console.log('🔍 Processing TikTok URL:', url);
+  
   try {
     const apiUrl = `https://api.tiklydown.eu/api/download?url=${encodeURIComponent(url)}`;
     const response = await fetch(apiUrl);
     const data = await response.json();
-
-    if (data.video) {
-      // Essayer d'obtenir la durée réelle
-      const duration = await downloadAndGetDuration(data.video);
-
-      return {
-        contentType: 'video/mp4',
-        mediaDuration: duration || data.duration || 30,
-        directUrl: data.video,
-      };
-    }
+    // ... rest of API 1 code
   } catch (error) {
+    console.log('✅ API 1 failed as expected, trying API 2...');
     try {
       const apiUrl2 = `https://www.tikwm.com/api/?url=${encodeURIComponent(url)}`;
       const response = await fetch(apiUrl2);
       const data = await response.json();
 
       if (data.data && data.data.play) {
-        // Essayer d'obtenir la durée réelle
+        
+        // AJOUTEZ CES LIGNES MANQUANTES :
         const duration = await downloadAndGetDuration(data.data.play);
-
         return {
           contentType: 'video/mp4',
           mediaDuration: duration || data.data.duration || 30,
           directUrl: data.data.play,
         };
+      } else {
+        console.log('❌ No video data in API 2 response');
       }
-    } catch {
+    } catch (api2Error) {
+      console.log('❌ API 2 failed:', api2Error);
       return null;
     }
   }
@@ -101,11 +97,18 @@ export const getContentInformationsFromUrl = async (url: string) => {
   if (isTikTokUrl(transformedUrl)) {
     const tiktokInfo = await getTikTokVideoInfo(transformedUrl);
     if (tiktokInfo) {
+      console.log('🎯 TikTok info returned:', {
+        contentType: tiktokInfo.contentType,
+        mediaDuration: tiktokInfo.mediaDuration,
+        directUrl: tiktokInfo.directUrl
+      });
       return {
         contentType: tiktokInfo.contentType,
         mediaDuration: tiktokInfo.mediaDuration,
         directUrl: tiktokInfo.directUrl,
       };
+    } else {
+      console.log('❌ TikTok info is null');
     }
   }
 
