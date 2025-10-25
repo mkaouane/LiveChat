@@ -57,9 +57,6 @@ export const hideTalkCommand = () => ({
             mediaDuration: Math.ceil(additionalContent.mediaDuration),
           }),
           type: QueueType.VOCAL,
-          author: interaction.user.username,
-          authorId: interaction.user.id,
-          authorImage: interaction.user.avatarURL(),
           discordGuildId: interaction.guildId!,
           duration: await getDurationFromGuildId(
             additionalContent.mediaDuration ? Math.ceil(additionalContent.mediaDuration) : undefined,
