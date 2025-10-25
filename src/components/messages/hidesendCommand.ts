@@ -112,6 +112,7 @@ export const hideSendCommand = () => ({
           ephemeral: true,
         });
       }
+      
       throw error;
     }
   },
