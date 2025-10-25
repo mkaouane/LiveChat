@@ -1,7 +1,7 @@
 <html>
 
 <head>
-  <title>BookyyChat</title>
+  <title>LiveChat</title>
   <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"
     integrity="sha384-Gr6Lu2Ajx28mzwyVR8CFkULdCU7kMlZ9UthllibdOSo6qAiN+yXNHqtgdTvFXMT4"
     crossorigin="anonymous"></script>
@@ -44,12 +44,95 @@
     }
 
     function generateAudioVideo(src, displayFull) {
-  return '<media-player id="message-player" ' + (displayFull ? "class='aspect-auto w-[100vw] h-[100vh]'" : '') + ' src="' + src + '" autoplay controls>' +
+  console.log('🎬 generateAudioVideo called with:', { src, displayFull });
+  
+  // Détecter si c'est une URL YouTube
+  const isYouTube = src.includes('youtube.com') || src.includes('youtu.be');
+  console.log('🔍 Is YouTube URL:', isYouTube);
+  
+  if (isYouTube) {
+    // Extraire l'ID vidéo et le timecode
+    const videoId = extractYouTubeId(src);
+    const timecode = extractYouTubeTimecode(src);
+    console.log('📺 Video ID:', videoId);
+    console.log('⏰ Timecode:', timecode);
+    
+    // Utiliser une iframe YouTube simple avec timecode
+    const embedUrl = `https://www.youtube.com/embed/${videoId}?start=${timecode || 0}&autoplay=1&mute=0&controls=1&rel=0`;
+    console.log('🔗 Embed URL:', embedUrl);
+    
+    const baseClasses = "w-full h-auto max-h-[80vh]";
+    const fullClasses = "aspect-auto w-[100vw] h-[100vh]";
+    
+    return '<iframe ' + 
+      'class="' + (displayFull ? fullClasses : baseClasses) + '" ' +
+      'src="' + embedUrl + '" ' +
+      'frameborder="0" allowfullscreen>' +
+      '</iframe>';
+  }
+  
+  // Pour les autres médias (fichiers directs)
+  return '<media-player id="message-player" ' + 
+    (displayFull ? "class='aspect-auto w-[100vw] h-[100vh]'" : "class='w-full h-auto max-h-[80vh]'") + 
+    ' src="' + src + '" autoplay controls>' +
     '<media-provider></media-provider>' +
     '<media-audio-layout></media-audio-layout>' +
     '<media-video-layout></media-video-layout>' +
     '</media-player>';
 }
+
+    function extractYouTubeId(url) {
+      const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+      const match = url.match(regex);
+      return match ? match[1] : null;
+    }
+
+    function extractYouTubeTimecode(url) {
+      console.log('🔍 Extracting timecode from URL:', url);
+      
+      // Extraire le timecode de différentes formats :
+      // ?t=20s, ?t=1m20s, ?t=120, &t=20s, etc.
+      const timecodeMatch = url.match(/[?&]t=([^&]+)/);
+      console.log('🎯 Timecode match:', timecodeMatch);
+      
+      if (!timecodeMatch) return null;
+      
+      const timecode = timecodeMatch[1];
+      console.log('⏰ Raw timecode:', timecode);
+      
+      // Si c'est déjà en secondes (nombre pur)
+      if (/^\d+$/.test(timecode)) {
+        const seconds = parseInt(timecode);
+        console.log('✅ Parsed as seconds:', seconds);
+        return seconds;
+      }
+      
+      // Si c'est au format "20s", "1m20s", etc.
+      let totalSeconds = 0;
+      
+      // Extraire les minutes (1m, 2m, etc.)
+      const minutesMatch = timecode.match(/(\d+)m/);
+      if (minutesMatch) {
+        totalSeconds += parseInt(minutesMatch[1]) * 60;
+        console.log('📅 Minutes found:', minutesMatch[1]);
+      }
+      
+      // Extraire les secondes (20s, 30s, etc.)
+      const secondsMatch = timecode.match(/(\d+)s/);
+      if (secondsMatch) {
+        totalSeconds += parseInt(secondsMatch[1]);
+        console.log('⏱️ Seconds found:', secondsMatch[1]);
+      }
+      
+      // Si pas de format reconnu, essayer de parser comme nombre
+      if (totalSeconds === 0 && /^\d+/.test(timecode)) {
+        totalSeconds = parseInt(timecode);
+        console.log('🔢 Parsed as number:', totalSeconds);
+      }
+      
+      console.log('🎬 Final timecode in seconds:', totalSeconds);
+      return totalSeconds > 0 ? totalSeconds : null;
+    }
 
     function displayAuthor(authorUsername, authorPictureURL) {
       var elementBlock = document.getElementById('author-block');
@@ -111,6 +194,7 @@
 }
 
     var timeout;
+    
     function displayMessage(message) {
       // Clear any existing timeout
       if (timeout) {

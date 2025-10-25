@@ -58,8 +58,40 @@ export const executeMessagesWorker = async (fastify: FastifyCustomInstance) => {
     });
   }
 
-  fastify.io.to(`messages-${lastMessage.discordGuildId}`).emit('new-message', lastMessage);
-  logger.debug(`[SOCKET] New message ${lastMessage.id} (guild: ${lastMessage.discordGuildId}): ${lastMessage.content}`);
+  // Vérifier si l'auteur est blacklisté
+  if (lastMessage.authorId) {
+    const isBlacklisted = await prisma.blacklist.findFirst({
+      where: {
+        userId: lastMessage.authorId,
+        guildId: lastMessage.discordGuildId,
+      },
+    });
+
+    if (isBlacklisted) {
+      // Créer un message de blacklist
+      const blacklistMessage = {
+        ...lastMessage,
+        content: JSON.stringify({
+          url: 'https://i.pinimg.com/736x/2c/ec/55/2cec55117854b4f5218bd3274c7dbdfa.jpg',
+          text: `${lastMessage.author} a essayé d'envoyer un LiveChat mais ${lastMessage.author} n'est pas drôle`,
+          mediaContentType: 'image/jpeg',
+          displayFull: false,
+        }),
+        author: lastMessage.author,
+        authorId: lastMessage.authorId,
+        authorImage: lastMessage.authorImage,
+      };
+
+      fastify.io.to(`messages-${lastMessage.discordGuildId}`).emit('new-message', blacklistMessage);
+      logger.debug(`[SOCKET] Blacklist message ${lastMessage.id} (guild: ${lastMessage.discordGuildId}): User ${lastMessage.authorId} is blacklisted`);
+    } else {
+      fastify.io.to(`messages-${lastMessage.discordGuildId}`).emit('new-message', lastMessage);
+      logger.debug(`[SOCKET] New message ${lastMessage.id} (guild: ${lastMessage.discordGuildId}): ${lastMessage.content}`);
+    }
+  } else {
+    fastify.io.to(`messages-${lastMessage.discordGuildId}`).emit('new-message', lastMessage);
+    logger.debug(`[SOCKET] New message ${lastMessage.id} (guild: ${lastMessage.discordGuildId}): ${lastMessage.content}`);
+  }
 
   await prisma.queue.delete({ where: { id: lastMessage.id } });
 

@@ -61,6 +61,7 @@ export const sendCommand = () => ({
         }),
         type: QueueType.MESSAGE,
         author: interaction.user.username,
+        authorId: interaction.user.id,
         authorImage: interaction.user.avatarURL(),
         discordGuildId: interaction.guildId!,
         duration: await getDurationFromGuildId(

@@ -14,6 +14,7 @@ model Queue {
   content String
 
   author      String?
+  authorId    String?
   authorImage String?
 
   submissionDate DateTime @default(now())
@@ -30,4 +31,25 @@ model Guild {
   defaultMediaTime Int?
   maxMediaTime     Int?
   displayMediaFull Boolean   @default(false)
+}
+
+model Blacklist {
+  id         String   @id @default(uuid())
+  userId    String
+  guildId   String
+  createdAt DateTime @default(now())
+  
+  @@unique([userId, guildId])
+  @@index([guildId])
+}
+
+model Vote {
+  id         String   @id @default(uuid())
+  targetUserId String
+  guildId    String
+  voterId    String
+  createdAt  DateTime @default(now())
+  
+  @@unique([targetUserId, guildId, voterId])
+  @@index([guildId])
 }
