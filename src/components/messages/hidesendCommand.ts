@@ -61,9 +61,6 @@ export const hideSendCommand = () => ({
             displayFull: await getDisplayMediaFullFromGuildId(interaction.guildId!),
           }),
           type: QueueType.MESSAGE,
-          author: interaction.user.username,
-          authorId: interaction.user.id,
-          authorImage: interaction.user.avatarURL(),
           discordGuildId: interaction.guildId!,
           duration: await getDurationFromGuildId(
             mediaDuration ? Math.ceil(mediaDuration) : undefined,

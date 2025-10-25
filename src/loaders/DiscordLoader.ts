@@ -13,6 +13,7 @@ import { aliveCommand } from '../components/discord/aliveCommand';
 import { sendCommand } from '../components/messages/sendCommand';
 import { hideSendCommand } from '../components/messages/hidesendCommand';
 import { loadMessagesWorker } from '../components/messages/messagesWorker';
+// prisma est disponible via global.prisma
 import { talkCommand } from '../components/messages/talkCommand';
 import { hideTalkCommand } from '../components/messages/hidetalkCommand';
 import { clientCommand } from '../components/discord/clientCommand';
@@ -23,6 +24,8 @@ import { setDisplayMediaFullCommand } from '../components/discord/setDisplayFull
 import { setMaxTimeCommand } from '../components/discord/setMaxTimeCommand';
 import { blacklistCommand } from '../components/discord/blacklistCommand';
 import { unblacklistCommand } from '../components/discord/unblacklistCommand';
+import { blockCommand } from '../components/discord/blockCommand';
+import { unblockCommand } from '../components/discord/unblockCommand';
 import { stopCommand } from '../components/messages/stopCommand';
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -90,6 +93,8 @@ const loadDiscordCommands = async (fastify: FastifyCustomInstance) => {
       setMaxTimeCommand(),
       blacklistCommand(),
       unblacklistCommand(),
+      blockCommand(),
+      unblockCommand(),
       stopCommand(fastify),
     ];
     const hideCommands = [hideSendCommand(), hideTalkCommand()];
@@ -126,6 +131,31 @@ const loadDiscordCommandsHandler = () => {
 
     if (!command) {
       return;
+    }
+
+    // Vérifier si l'utilisateur est bloqué (sauf pour les commandes admin)
+    const isAdminCommand = ['block', 'unblock', 'blacklist', 'unblacklist', 'config-defaut', 'config-displayfull', 'config-max'].includes(interaction.commandName);
+    
+    if (!isAdminCommand) {
+      const isBlocked = await global.prisma.blockedUser.findFirst({
+        where: {
+          userId: interaction.user.id,
+          guildId: interaction.guildId!,
+        },
+      });
+
+      if (isBlocked) {
+        await interaction.reply({
+          embeds: [
+            new EmbedBuilder()
+              .setTitle('🚫 Accès bloqué')
+              .setDescription('Vous êtes bloqué de toutes les commandes du bot.')
+              .setColor(0xe74c3c),
+          ],
+          ephemeral: true,
+        });
+        return;
+      }
     }
 
     try {

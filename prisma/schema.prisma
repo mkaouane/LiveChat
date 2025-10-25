@@ -53,3 +53,14 @@ model Vote {
   @@unique([targetUserId, guildId, voterId])
   @@index([guildId])
 }
+
+model BlockedUser {
+  id         String   @id @default(uuid())
+  userId    String
+  guildId   String
+  blockedBy String
+  createdAt DateTime @default(now())
+  
+  @@unique([userId, guildId])
+  @@index([guildId])
+}
