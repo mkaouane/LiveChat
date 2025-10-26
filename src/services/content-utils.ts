@@ -17,6 +17,27 @@ const isTikTokUrl = (url: string): boolean => {
   return url.includes('tiktok.com');
 };
 
+// Fonction pour suivre les redirections TikTok et récupérer le vrai lien
+async function resolveTikTokUrl(url: string): Promise<string> {
+  try {
+    console.log('🔗 Following TikTok redirect:', url);
+    
+    // Suivre la redirection
+    const response = await fetch(url, {
+      method: 'HEAD',
+      redirect: 'follow'
+    });
+    
+    const finalUrl = response.url;
+    console.log('✅ Final TikTok URL:', finalUrl);
+    
+    return finalUrl;
+  } catch (error) {
+    console.log('❌ Failed to follow redirect:', error);
+    return url; // Retourner l'URL originale en cas d'erreur
+  }
+}
+
 // const isYouTubeUrl = (url: string): boolean => {
 //   return url.includes('youtube.com');
 // };
@@ -35,7 +56,7 @@ async function downloadAndGetDuration(url: string): Promise<number | null> {
   try {
     const response = await fetch(url);
     const buffer = await response.arrayBuffer();
-    await writeFile(tempFile, Buffer.from(buffer));
+    await writeFile(tempFile, new Uint8Array(buffer));
 
     const duration = await getVideoDurationInSeconds(tempFile);
     return duration;
@@ -53,26 +74,29 @@ async function downloadAndGetDuration(url: string): Promise<number | null> {
 async function getTikTokVideoInfo(url: string) {
   console.log('🔍 Processing TikTok URL:', url);
   
+  // Résoudre l'URL TikTok (suivre les redirections pour les liens courts)
+  const resolvedUrl = await resolveTikTokUrl(url);
+  
   try {
-    const apiUrl = `https://api.tiklydown.eu/api/download?url=${encodeURIComponent(url)}`;
+    const apiUrl = `https://api.tiklydown.eu/api/download?url=${encodeURIComponent(resolvedUrl)}`;
     const response = await fetch(apiUrl);
     const data = await response.json();
     // ... rest of API 1 code
   } catch (error) {
     console.log('✅ API 1 failed as expected, trying API 2...');
     try {
-      const apiUrl2 = `https://www.tikwm.com/api/?url=${encodeURIComponent(url)}`;
+      const apiUrl2 = `https://www.tikwm.com/api/?url=${encodeURIComponent(resolvedUrl)}`;
       const response = await fetch(apiUrl2);
       const data = await response.json();
 
-      if (data.data && data.data.play) {
-        
+      const apiData = data as any;
+      if (apiData.data && apiData.data.play) {
         // AJOUTEZ CES LIGNES MANQUANTES :
-        const duration = await downloadAndGetDuration(data.data.play);
+        const duration = await downloadAndGetDuration(apiData.data.play);
         return {
           contentType: 'video/mp4',
-          mediaDuration: duration || data.data.duration || 30,
-          directUrl: data.data.play,
+          mediaDuration: duration || apiData.data.duration || 30,
+          directUrl: apiData.data.play,
         };
       } else {
         console.log('❌ No video data in API 2 response');

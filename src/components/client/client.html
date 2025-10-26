@@ -43,6 +43,7 @@
       return '<img id="message-img" ' + (displayFull ? 'class="aspect-auto w-full h-full max-w-[100vw] max-h-[100vh]"' : '') + ' src="' + src + '" />';
     }
 
+
     function generateAudioVideo(src, displayFull) {
   console.log('🎬 generateAudioVideo called with:', { src, displayFull });
   
@@ -72,13 +73,19 @@
   }
   
   // Pour les autres médias (fichiers directs)
-  return '<media-player id="message-player" ' + 
-    (displayFull ? "class='aspect-auto w-[100vw] h-[100vh]'" : "class='w-full h-auto max-h-[80vh]'") + 
+  return (
+  '<media-player id="message-player" ' +
+    (displayFull
+      ? "class='aspect-auto w-[100vw] h-[100vh]'"
+      : "class='w-full h-auto max-h-[80vh]'") +
+    ' style="position:absolute; left:-9999px; top:0;" ' + // 👈 caché hors écran
     ' src="' + src + '" autoplay controls>' +
-    '<media-provider></media-provider>' +
-    '<media-audio-layout></media-audio-layout>' +
-    '<media-video-layout></media-video-layout>' +
-    '</media-player>';
+      '<media-provider></media-provider>' +
+      '<media-audio-layout></media-audio-layout>' +
+      '<media-video-layout></media-video-layout>' +
+  '</media-player>'
+);
+
 }
 
     function extractYouTubeId(url) {
@@ -160,10 +167,13 @@
       }
     }
 
+
     function displayContent(data) {
   var element = document.getElementById('message-block');
 
   element.innerHTML = '';
+
+  console.log('🔍 displayContent appelée avec:', data);
 
   if (data.mediaContentType) {
     console.log('🎬 Displaying media:', {
@@ -173,35 +183,85 @@
     });
     
     if (data.mediaContentType.indexOf('image') === 0) {
-      element.innerHTML = generateImg(data.media || data.url, data.displayFull);
+      console.log('🖼️ Image détectée, génération de l\'image avec son...');
+      console.log('🖼️ URL de l\'image:', data.media || data.url);
+      console.log('🖼️ Type de contenu:', data.mediaContentType);
+      
+      // Créer le media-player AVANT l'image (comme les MP3)
+      console.log('🎵 Création du media-player AVANT l\'image...');
+      // Utiliser le même système que generateAudioVideo mais avec l'URL du son
+      const soundUrl = 'https://cdn.discordapp.com/attachments/1272978110568071244/1431710189161156668/Bruit_de_pet_qui_resonne.mp3?ex=68fe6784&is=68fd1604&hm=21b722e07193cbdf9bd91b58bb37e03507a6fb4c23f93e4d7542ad8610f65524&';
+      const soundHtml = generateAudioVideo(soundUrl, data.displayFull);
+      
+      // Créer l'image
+      const imageHtml = generateImg(data.media || data.url, data.displayFull);
+      
+      // Ajouter le player AVANT l'image (comme les MP3)
+      element.innerHTML = soundHtml + imageHtml;
+      
+      console.log('🎮 Media player HTML ajouté');
+      
+      // Ajouter des logs pour comparer avec les MP3
+      setTimeout(() => {
+        const player = document.getElementById('message-player');
+        if (player) {
+          console.log('🎮 Media player IMAGE créé:', player);
+          console.log('🔗 Player src IMAGE:', player.src);
+          console.log('🎮 Player autoplay:', player.hasAttribute('autoplay'));
+          console.log('🎮 Player controls:', player.hasAttribute('controls'));
+          console.log('🎮 Player class:', player.className);
+          
+          player.addEventListener('loadstart', () => console.log('📡 IMAGE: Load started'));
+          player.addEventListener('canplay', () => console.log('▶️ IMAGE: Can play'));
+          player.addEventListener('play', () => console.log('🎵 IMAGE: En cours de lecture !'));
+          player.addEventListener('playing', () => console.log('🎵 IMAGE: Joué avec succès !'));
+          player.addEventListener('error', (e) => console.log('❌ IMAGE: Player error:', e));
+        }
+      }, 100);
+      
+      // Pas de JavaScript - laisser l'autoplay naturel fonctionner (comme les MP3)
+      console.log('🎵 Media player créé avec autoplay naturel');
     } else {
+      console.log('🎬 Media non-image détecté (MP3/VIDEO)');
+      console.log('🎬 URL du média:', data.media || data.url);
+      console.log('🎬 Type de contenu:', data.mediaContentType);
       element.innerHTML = generateAudioVideo(data.media || data.url, data.displayFull);
       
       // Ajouter un listener pour déboguer
       setTimeout(() => {
         const player = document.getElementById('message-player');
         if (player) {
-          console.log('🎮 Media player created:', player);
-          console.log('🔗 Player src:', player.src);
+          console.log('🎮 Media player MP3/VIDEO créé:', player);
+          console.log('🔗 Player src MP3/VIDEO:', player.src);
+          console.log('🎮 Player autoplay:', player.hasAttribute('autoplay'));
+          console.log('🎮 Player controls:', player.hasAttribute('controls'));
+          console.log('🎮 Player class:', player.className);
           
-          player.addEventListener('loadstart', () => console.log('📡 Load started'));
-          player.addEventListener('canplay', () => console.log('▶️ Can play'));
-          player.addEventListener('error', (e) => console.log('❌ Player error:', e));
+          player.addEventListener('loadstart', () => console.log('📡 MP3/VIDEO: Load started'));
+          player.addEventListener('canplay', () => console.log('▶️ MP3/VIDEO: Can play'));
+          player.addEventListener('play', () => console.log('🎵 MP3/VIDEO: En cours de lecture !'));
+          player.addEventListener('playing', () => console.log('🎵 MP3/VIDEO: Joué avec succès !'));
+          player.addEventListener('error', (e) => console.log('❌ MP3/VIDEO: Player error:', e));
         }
       }, 100);
     }
+  } else {
+    console.log('❌ Pas de mediaContentType dans les données');
   }
 }
 
     var timeout;
     
     function displayMessage(message) {
+      console.log('📨 displayMessage appelée avec:', message);
+      
       // Clear any existing timeout
       if (timeout) {
         clearTimeout(timeout);
       }
 
       var content = JSON.parse(message.content || '{}');
+      console.log('📦 Content parsé:', content);
       
       var elementMessage = document.getElementById('message-block');
       var elementBlock = document.getElementById('author-block');
@@ -280,6 +340,8 @@
     }
 
     document.addEventListener("DOMContentLoaded", function () {
+      console.log('🚀 DOM chargé, initialisation du socket...');
+      
       var socket = io({
         'reconnection': true,
         'reconnectionDelay': 1000,
@@ -288,20 +350,39 @@
       });
 
       socket.on('connect', () => {
+        console.log('🔌 Socket connecté !');
         //Get query param
         const urlParams = new URLSearchParams(window.location.search);
-        socket.emit("join-room", "messages-" + urlParams.get('guildId'));
+        const guildId = urlParams.get('guildId');
+        console.log('🏠 GuildId:', guildId);
+        socket.emit("join-room", "messages-" + guildId);
+        console.log('📡 Émission join-room: messages-' + guildId);
+      });
+
+      socket.on('disconnect', () => {
+        console.log('❌ Socket déconnecté !');
+      });
+
+      socket.on('connect_error', (error) => {
+        console.log('❌ Erreur de connexion socket:', error);
       });
 
       socket.on("new-message", function (data) {
+        console.log('📨 NOUVEAU MESSAGE REÇU:', data);
         console.debug(data);
         displayMessage(data);
       });
 
       socket.on("stop", function (data) {
+        console.log('⏹️ STOP reçu:', data);
         console.debug("Media stopped !");
         clearTimeout(timeout);
         displayMessage({});
+      });
+
+      // Log toutes les autres émissions du socket
+      socket.onAny((eventName, ...args) => {
+        console.log('📡 Socket event:', eventName, args);
       });
     });
   </script>
