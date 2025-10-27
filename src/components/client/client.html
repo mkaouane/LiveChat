@@ -72,13 +72,24 @@
   }
   
   // Pour les autres médias (fichiers directs)
-  return '<media-player id="message-player" ' + 
-    (displayFull ? "class='aspect-auto w-[100vw] h-[100vh]'" : "class='w-full h-auto max-h-[80vh]'") + 
-    ' src="' + src + '" autoplay controls>' +
+  const baseClasses = displayFull ? "aspect-auto w-[100vw] h-[100vh]" : "w-full h-auto max-h-[80vh]";
+  
+  return '<div id="media-container">' +
+    '<media-player id="message-player" ' + 
+    'class="' + baseClasses + '" ' +
+    'src="' + src + '" autoplay controls>' +
     '<media-provider></media-provider>' +
     '<media-audio-layout></media-audio-layout>' +
     '<media-video-layout></media-video-layout>' +
-    '</media-player>';
+    '</media-player>' +
+    '<video id="fallback-video" ' +
+    'class="' + baseClasses + '" ' +
+    'controls autoplay muted style="display: none;">' +
+    '<source src="' + src + '" type="video/mp4">' +
+    '<source src="' + src + '" type="video/webm">' +
+    '<source src="' + src + '" type="video/ogg">' +
+    '</video>' +
+    '</div>';
 }
 
     function extractYouTubeId(url) {
@@ -177,16 +188,51 @@
     } else {
       element.innerHTML = generateAudioVideo(data.media || data.url, data.displayFull);
       
-      // Ajouter un listener pour déboguer
+      // Ajouter un listener pour déboguer et gérer le fallback
       setTimeout(() => {
         const player = document.getElementById('message-player');
-        if (player) {
+        const fallbackVideo = document.getElementById('fallback-video');
+        
+        if (player && fallbackVideo) {
           console.log('🎮 Media player created:', player);
           console.log('🔗 Player src:', player.src);
           
-          player.addEventListener('loadstart', () => console.log('📡 Load started'));
-          player.addEventListener('canplay', () => console.log('▶️ Can play'));
-          player.addEventListener('error', (e) => console.log('❌ Player error:', e));
+          // Listeners pour Vidstack
+          player.addEventListener('loadstart', () => console.log('📡 Vidstack load started'));
+          player.addEventListener('canplay', () => console.log('▶️ Vidstack can play'));
+          player.addEventListener('error', (e) => {
+            console.log('❌ Vidstack player error:', e);
+            console.log('🔄 Switching to fallback video...');
+            
+            // Masquer Vidstack et afficher le fallback
+            player.style.display = 'none';
+            fallbackVideo.style.display = 'block';
+            
+            // Essayer de jouer le fallback
+            fallbackVideo.play().catch(err => {
+              console.log('❌ Fallback video also failed:', err);
+            });
+          });
+          
+          // Listeners pour le fallback vidéo
+          fallbackVideo.addEventListener('loadstart', () => console.log('📡 Fallback load started'));
+          fallbackVideo.addEventListener('canplay', () => console.log('▶️ Fallback can play'));
+          fallbackVideo.addEventListener('error', (e) => {
+            console.log('❌ Fallback video error:', e);
+            console.log('❌ Both players failed - video cannot be played');
+          });
+          
+          // Timeout de sécurité : si Vidstack ne charge pas en 3 secondes, basculer
+          setTimeout(() => {
+            if (player.style.display !== 'none' && fallbackVideo.style.display === 'none') {
+              console.log('⏰ Vidstack timeout - switching to fallback');
+              player.style.display = 'none';
+              fallbackVideo.style.display = 'block';
+              fallbackVideo.play().catch(err => {
+                console.log('❌ Fallback video play failed:', err);
+              });
+            }
+          }, 3000);
         }
       }, 100);
     }
@@ -221,12 +267,21 @@
       if (message.duration) {
         let displayDuration = message.duration;
 
-        // Try to get the video element
+        // Try to get the video element (from Vidstack or fallback)
         const mediaPlayer = document.getElementById('message-player');
-        if (mediaPlayer) {
-          const videoElement = mediaPlayer.querySelector('video');
-          
-          if (videoElement) {
+        const fallbackVideo = document.getElementById('fallback-video');
+        let videoElement = null;
+        
+        // Priorité au fallback s'il est visible, sinon Vidstack
+        if (fallbackVideo && fallbackVideo.style.display !== 'none') {
+          videoElement = fallbackVideo;
+          console.log('🎬 Using fallback video for duration');
+        } else if (mediaPlayer) {
+          videoElement = mediaPlayer.querySelector('video');
+          console.log('🎬 Using Vidstack video for duration');
+        }
+        
+        if (videoElement) {
             // Function to handle video duration
             const handleVideoDuration = () => {
               // If video duration is available and valid
@@ -277,7 +332,6 @@
           }, Math.floor(message.duration * 1000) + 100);
         }
       }
-    }
 
     document.addEventListener("DOMContentLoaded", function () {
       var socket = io({
