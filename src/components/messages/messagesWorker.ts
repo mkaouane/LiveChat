@@ -82,17 +82,13 @@ export const executeMessagesWorker = async (fastify: FastifyCustomInstance) => {
         authorImage: lastMessage.authorImage,
       };
 
-      console.log('📡 [SERVEUR] Envoi message blacklist vers room:', `messages-${lastMessage.discordGuildId}`);
       fastify.io.to(`messages-${lastMessage.discordGuildId}`).emit('new-message', blacklistMessage);
       logger.debug(`[SOCKET] Blacklist message ${lastMessage.id} (guild: ${lastMessage.discordGuildId}): User ${lastMessage.authorId} is blacklisted`);
     } else {
-      console.log('📡 [SERVEUR] Envoi message normal vers room:', `messages-${lastMessage.discordGuildId}`);
-      console.log('📡 [SERVEUR] Contenu du message:', lastMessage.content);
       fastify.io.to(`messages-${lastMessage.discordGuildId}`).emit('new-message', lastMessage);
       logger.debug(`[SOCKET] New message ${lastMessage.id} (guild: ${lastMessage.discordGuildId}): ${lastMessage.content}`);
     }
   } else {
-    console.log('📡 [SERVEUR] Envoi message sans authorId vers room:', `messages-${lastMessage.discordGuildId}`);
     fastify.io.to(`messages-${lastMessage.discordGuildId}`).emit('new-message', lastMessage);
     logger.debug(`[SOCKET] New message ${lastMessage.id} (guild: ${lastMessage.discordGuildId}): ${lastMessage.content}`);
   }
