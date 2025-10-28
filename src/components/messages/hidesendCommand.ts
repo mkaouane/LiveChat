@@ -3,7 +3,6 @@ import { QueueType } from '../../services/prisma/loadPrisma';
 import { getContentInformationsFromUrl } from '../../services/content-utils';
 import { getDisplayMediaFullFromGuildId, getDurationFromGuildId } from '../../services/utils';
 import { env } from '../../services/env';
-import { videoConverter } from '../../services/video-converter';
 
 export const hideSendCommand = () => ({
   data: new SlashCommandBuilder()
@@ -61,37 +60,9 @@ export const hideSendCommand = () => ({
 
       const reveal = Math.random() * 100 < env.REVEAL_ANON_PROB;
 
-      // Conversion automatique des fichiers Discord pour compatibilité
-      let finalUrl = url;
-      let finalMedia = media;
-      
-      if (url && (url.includes('cdn.discordapp.com') || url.includes('media.discordapp.net'))) {
-        console.log('🔄 Conversion automatique fichier Discord:', url);
-        const conversionResult = await videoConverter.convertDiscordVideo(url);
-        
-        if (conversionResult.success && conversionResult.convertedUrl) {
-          finalUrl = conversionResult.convertedUrl;
-          console.log('✅ Fichier Discord converti:', conversionResult.cached ? '(cache)' : '(nouveau)');
-        } else {
-          console.log('⚠️ Conversion échouée, utilisation originale:', conversionResult.error);
-        }
-      }
-      
-      if (media && (media.includes('cdn.discordapp.com') || media.includes('media.discordapp.net'))) {
-        console.log('🔄 Conversion automatique média Discord:', media);
-        const conversionResult = await videoConverter.convertDiscordVideo(media);
-        
-        if (conversionResult.success && conversionResult.convertedUrl) {
-          finalMedia = conversionResult.convertedUrl;
-          console.log('✅ Média Discord converti:', conversionResult.cached ? '(cache)' : '(nouveau)');
-        } else {
-          console.log('⚠️ Conversion échouée, utilisation originale:', conversionResult.error);
-        }
-      }
-
       // Log détaillé de la commande
       const timestamp = new Date().toLocaleString('fr-FR');
-      const mediaInfo = finalMedia || finalUrl || 'Aucun média';
+      const mediaInfo = media || url || 'Aucun média';
       console.log(`[${timestamp}] 🕵️ /cmsg - Utilisateur: ${interaction.user.username} (${interaction.user.id})`);
       console.log(`[${timestamp}] 📝 Texte: ${text || 'Aucun texte'}`);
       console.log(`[${timestamp}] 🎬 Média/Lien: ${mediaInfo}`);
@@ -101,9 +72,9 @@ export const hideSendCommand = () => ({
       await prisma.queue.create({
         data: {
           content: JSON.stringify({
-            url: finalUrl,
+            url,
             text,
-            media: finalMedia,
+            media,
             mediaContentType,
             mediaDuration: await getDurationFromGuildId(
               mediaDuration ? Math.ceil(mediaDuration) : undefined,

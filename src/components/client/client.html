@@ -87,7 +87,7 @@
     '</media-player>' +
     '<video id="fallback-video" ' +
     'class="' + baseClasses + '" ' +
-    'controls autoplay style="display: none;">' +
+    'controls autoplay muted style="display: none;">' +
     '<source src="' + src + '" type="video/mp4">' +
     '<source src="' + src + '" type="video/webm">' +
     '<source src="' + src + '" type="video/ogg">' +
@@ -214,7 +214,6 @@
             fallbackVideo.style.display = 'block';
             
             // Essayer de jouer le fallback
-            try { fallbackVideo.muted = false; fallbackVideo.volume = 1; } catch {}
             fallbackVideo.play().catch(err => {
               console.log('❌ Fallback video also failed:', err);
             });
@@ -228,7 +227,17 @@
             console.log('❌ Both players failed - video cannot be played');
           });
           
-          // Suppression du basculement automatique après timeout: on ne bascule que sur erreur
+          // Timeout de sécurité : si Vidstack ne charge pas en 3 secondes, basculer
+          setTimeout(() => {
+            if (player.style.display !== 'none' && fallbackVideo.style.display === 'none') {
+              console.log('⏰ Vidstack timeout - switching to fallback');
+              player.style.display = 'none';
+              fallbackVideo.style.display = 'block';
+              fallbackVideo.play().catch(err => {
+                console.log('❌ Fallback video play failed:', err);
+              });
+            }
+          }, 3000);
         }
       }, 100);
     }
