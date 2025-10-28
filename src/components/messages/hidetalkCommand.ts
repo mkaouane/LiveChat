@@ -51,6 +51,15 @@ export const hideTalkCommand = () => ({
 
       const reveal = Math.random() * 100 < env.REVEAL_ANON_PROB;
 
+      // Log détaillé de la commande
+      const timestamp = new Date().toLocaleString('fr-FR');
+      console.log(`[${timestamp}] 🕵️🎤 /cdire - Utilisateur: ${interaction.user.username} (${interaction.user.id})`);
+      console.log(`[${timestamp}] 📝 Texte: ${text || 'Aucun texte'}`);
+      console.log(`[${timestamp}] 🎵 Voix: ${voice}`);
+      console.log(`[${timestamp}] 🎬 Audio généré: ${media}`);
+      console.log(`[${timestamp}] ⏱️ Durée: ${Math.ceil(additionalContent.mediaDuration)}s`);
+      console.log(`[${timestamp}] 🎲 Révélation: ${reveal ? 'OUI (débusqué!)' : 'NON (anonyme)'}`);
+
       await prisma.queue.create({
         data: {
           content: JSON.stringify({

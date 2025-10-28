@@ -48,6 +48,14 @@ export const talkCommand = () => ({
 
       await deleteGtts(filePath);
 
+      // Log détaillé de la commande
+      const timestamp = new Date().toLocaleString('fr-FR');
+      console.log(`[${timestamp}] 🎤 /dire - Utilisateur: ${interaction.user.username} (${interaction.user.id})`);
+      console.log(`[${timestamp}] 📝 Texte: ${text || 'Aucun texte'}`);
+      console.log(`[${timestamp}] 🎵 Voix: ${voice}`);
+      console.log(`[${timestamp}] 🎬 Audio généré: ${media}`);
+      console.log(`[${timestamp}] ⏱️ Durée: ${Math.ceil(additionalContent.mediaDuration)}s`);
+
       await prisma.queue.create({
         data: {
           content: JSON.stringify({

@@ -46,6 +46,14 @@ export const sendCommand = () => ({
       mediaDuration = additionalContent.mediaDuration;
     }
 
+    // Log détaillé de la commande
+    const timestamp = new Date().toLocaleString('fr-FR');
+    const mediaInfo = media || url || 'Aucun média';
+    console.log(`[${timestamp}] 📤 /msg - Utilisateur: ${interaction.user.username} (${interaction.user.id})`);
+    console.log(`[${timestamp}] 📝 Texte: ${text || 'Aucun texte'}`);
+    console.log(`[${timestamp}] 🎬 Média/Lien: ${mediaInfo}`);
+    console.log(`[${timestamp}] ⏱️ Durée: ${mediaDuration ? Math.ceil(mediaDuration) + 's' : 'Par défaut'}`);
+
     await prisma.queue.create({
       data: {
         content: JSON.stringify({
