@@ -3,6 +3,7 @@ import { QueueType } from '../../services/prisma/loadPrisma';
 import { getContentInformationsFromUrl } from '../../services/content-utils';
 import { deleteGtts, promisedGtts, readGttsAsStream } from '../../services/gtts';
 import { getDurationFromGuildId } from '../../services/utils';
+import { env } from '../../services/env';
 
 export const hideTalkCommand = () => ({
   data: new SlashCommandBuilder()
@@ -40,13 +41,15 @@ export const hideTalkCommand = () => ({
         ],
         files: [fileStream],
       });
-
-      const message = await interactionReply.fetch();
+      // Le message retourné par editReply est suffisant, inutile de le refetch (évite 10008 Unknown Message)
+      const message = interactionReply;
       const media = message.attachments.first()?.proxyURL;
 
       const additionalContent = await getContentInformationsFromUrl(media as string);
 
       await deleteGtts(filePath);
+
+      const reveal = Math.random() * 100 < env.REVEAL_ANON_PROB;
 
       await prisma.queue.create({
         data: {
@@ -55,8 +58,11 @@ export const hideTalkCommand = () => ({
             media,
             mediaContentType: 'audio/mpeg',
             mediaDuration: Math.ceil(additionalContent.mediaDuration),
+            revealed: reveal,
           }),
           type: QueueType.VOCAL,
+          author: reveal ? interaction.user.username : null,
+          authorImage: reveal ? interaction.user.avatarURL() : null,
           discordGuildId: interaction.guildId!,
           duration: await getDurationFromGuildId(
             additionalContent.mediaDuration ? Math.ceil(additionalContent.mediaDuration) : undefined,

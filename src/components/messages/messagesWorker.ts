@@ -95,8 +95,8 @@ export const executeMessagesWorker = async (fastify: FastifyCustomInstance) => {
 
   await prisma.queue.delete({ where: { id: lastMessage.id } });
 
-  const content = JSON.parse(lastMessage.content);
-  return content.mediaDuration * 1000 || 5000;
+  // Utiliser la durée appliquée côté serveur (bornée par la config guild)
+  return (lastMessage.duration ?? 5) * 1000;
 };
 
 //INFO : Optimization - Can be executed into a dedicated worker ?

@@ -27,6 +27,17 @@ export const env = createEnv({
       .string()
       .default('5')
       .transform((s) => parseInt(s)),
+
+    // Probabilité de révéler un message anonyme (/cmsg, /cdire) en pourcentage (0-100)
+    REVEAL_ANON_PROB: z
+      .string()
+      .default('10')
+      .transform((s) => {
+        const n = parseInt(s);
+        if (isNaN(n) || n < 0) return 0;
+        if (n > 100) return 100;
+        return n;
+      }),
   },
   runtimeEnv: process.env,
 });

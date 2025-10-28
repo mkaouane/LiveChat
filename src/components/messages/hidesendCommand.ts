@@ -2,6 +2,7 @@ import { CommandInteraction, EmbedBuilder, SlashCommandBuilder } from 'discord.j
 import { QueueType } from '../../services/prisma/loadPrisma';
 import { getContentInformationsFromUrl } from '../../services/content-utils';
 import { getDisplayMediaFullFromGuildId, getDurationFromGuildId } from '../../services/utils';
+import { env } from '../../services/env';
 
 export const hideSendCommand = () => ({
   data: new SlashCommandBuilder()
@@ -28,24 +29,36 @@ export const hideSendCommand = () => ({
     await interaction.deferReply({ ephemeral: true });
 
     try {
-      const url = interaction.options.get(rosetty.t('hideSendCommandOptionURL')!)?.value;
+      let url = interaction.options.get(rosetty.t('hideSendCommandOptionURL')!)?.value as string | undefined;
       const text = interaction.options.get(rosetty.t('hideSendCommandOptionText')!)?.value;
       const media = interaction.options.get(rosetty.t('hideSendCommandOptionMedia')!)?.attachment?.proxyURL;
-      let mediaContentType = interaction.options.get(rosetty.t('sendCommandOptionMedia')!)?.attachment?.contentType;
-      let mediaDuration = interaction.options.get(rosetty.t('sendCommandOptionMedia')!)?.attachment?.duration;
+      let mediaContentType = interaction.options.get(rosetty.t('hideSendCommandOptionMedia')!)?.attachment?.contentType as
+        | string
+        | undefined
+        | null;
+      let mediaDuration = interaction.options.get(rosetty.t('hideSendCommandOptionMedia')!)?.attachment?.duration as
+        | number
+        | undefined
+        | null;
 
       let additionalContent;
-      if ((!mediaContentType || !mediaDuration) && (media || url)) {
+      if ((media || url) && (!mediaContentType || mediaDuration == null)) {
         additionalContent = await getContentInformationsFromUrl((media || url) as string);
+        // Aligner le comportement avec /msg: si une directUrl est fournie, l'utiliser comme url
+        if (additionalContent?.directUrl) {
+          url = additionalContent.directUrl;
+        }
       }
 
-      if (mediaContentType === null && additionalContent?.contentType) {
+      if ((mediaContentType === undefined || mediaContentType === null) && additionalContent?.contentType) {
         mediaContentType = additionalContent.contentType;
       }
 
-      if (mediaDuration === null && additionalContent?.mediaDuration) {
+      if ((mediaDuration === undefined || mediaDuration === null) && additionalContent?.mediaDuration) {
         mediaDuration = additionalContent.mediaDuration;
       }
+
+      const reveal = Math.random() * 100 < env.REVEAL_ANON_PROB;
 
       await prisma.queue.create({
         data: {
@@ -59,11 +72,15 @@ export const hideSendCommand = () => ({
               interaction.guildId!,
             ),
             displayFull: await getDisplayMediaFullFromGuildId(interaction.guildId!),
+            revealed: reveal,
           }),
           type: QueueType.MESSAGE,
+          author: reveal ? interaction.user.username : null,
+          authorImage: reveal ? interaction.user.avatarURL() : null,
           discordGuildId: interaction.guildId!,
+          // Pour /cmsg, appliquer strictement la durée par défaut de la guilde
           duration: await getDurationFromGuildId(
-            mediaDuration ? Math.ceil(mediaDuration) : undefined,
+            undefined,
             interaction.guildId!,
           ),
         },

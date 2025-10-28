@@ -2,6 +2,7 @@
 
 <head>
   <title>LiveChat</title>
+  <meta charset="utf-8" />
   <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"
     integrity="sha384-Gr6Lu2Ajx28mzwyVR8CFkULdCU7kMlZ9UthllibdOSo6qAiN+yXNHqtgdTvFXMT4"
     crossorigin="anonymous"></script>
@@ -173,6 +174,8 @@
       }
     }
 
+    function displayRevealBadge(visible) { /* supprimé visuel badge */ }
+
     function displayContent(data) {
   var element = document.getElementById('message-block');
 
@@ -258,9 +261,15 @@
       elementBlock.style.display = 'none';
       elementText.style.display = 'none';
 
-      displayAuthor(message.author, message.authorImage);
+      // Si révélé, ajouter " a été débusqué" à droite du pseudo
+      if (content.revealed && message.author) {
+        displayAuthor(message.author + ' était anonyme mais je poucave', message.authorImage);
+      } else {
+        displayAuthor(message.author, message.authorImage);
+      }
       displayText(content.text);
       displayContent(content);
+      displayRevealBadge(!!content.revealed);
 
       // Log the initial message duration
       console.log('Initial message duration:', message.duration);
@@ -268,6 +277,15 @@
       // If media is present and duration is specified
       if (message.duration) {
         let displayDuration = message.duration;
+
+        // Hard guard: always schedule removal at configured duration immediately
+        try {
+          if (timeout) clearTimeout(timeout);
+        } catch {}
+        timeout = setTimeout(() => {
+          console.log('⏱️ Hard timeout reached, removing media after:', displayDuration, 'seconds');
+          displayMessage({});
+        }, Math.floor(displayDuration * 1000) + 100);
 
         // Try to get the video element (from Vidstack or fallback)
         const mediaPlayer = document.getElementById('message-player');
@@ -295,6 +313,7 @@
                 console.log('Calculated display duration:', displayDuration);
 
                 // Set timeout based on actual video duration
+                try { if (timeout) clearTimeout(timeout); } catch {}
                 timeout = setTimeout(() => {
                   console.log('Removing media after:', displayDuration, 'seconds');
                   displayMessage({});
