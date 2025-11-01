@@ -24,29 +24,29 @@ export const talkCommand = () => ({
     await interaction.deferReply();
 
     try {
-      const text = interaction.options.get(rosetty.t('talkCommandOptionText')!)?.value;
-      const voice = interaction.options.get(rosetty.t('talkCommandOptionVoice')!)?.value;
+    const text = interaction.options.get(rosetty.t('talkCommandOptionText')!)?.value;
+    const voice = interaction.options.get(rosetty.t('talkCommandOptionVoice')!)?.value;
 
-      const filePath = await promisedGtts(voice, rosetty.getCurrentLang());
+    const filePath = await promisedGtts(voice, rosetty.getCurrentLang());
 
-      const fileStream = readGttsAsStream(filePath);
+    const fileStream = readGttsAsStream(filePath);
 
       const interactionReply = await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setTitle(rosetty.t('success')!)
-            .setDescription(rosetty.t('talkCommandAnswer')!)
-            .setColor(0x2ecc71),
-        ],
-        files: [fileStream],
-      });
+      embeds: [
+        new EmbedBuilder()
+          .setTitle(rosetty.t('success')!)
+          .setDescription(rosetty.t('talkCommandAnswer')!)
+          .setColor(0x2ecc71),
+      ],
+      files: [fileStream],
+    });
 
-      const message = await interactionReply.fetch();
-      const media = message.attachments.first()?.proxyURL;
+    const message = await interactionReply.fetch();
+    const media = message.attachments.first()?.proxyURL;
 
-      const additionalContent = await getContentInformationsFromUrl(media as string);
+    const additionalContent = await getContentInformationsFromUrl(media as string);
 
-      await deleteGtts(filePath);
+    await deleteGtts(filePath);
 
       // Log détaillé de la commande
       const timestamp = new Date().toLocaleString('fr-FR');
@@ -56,25 +56,25 @@ export const talkCommand = () => ({
       console.log(`[${timestamp}] 🎬 Audio généré: ${media}`);
       console.log(`[${timestamp}] ⏱️ Durée: ${Math.ceil(additionalContent.mediaDuration)}s`);
 
-      await prisma.queue.create({
-        data: {
-          content: JSON.stringify({
-            text,
-            media,
-            mediaContentType: 'audio/mpeg',
-            mediaDuration: Math.ceil(additionalContent.mediaDuration),
-          }),
-          type: QueueType.VOCAL,
-          discordGuildId: interaction.guildId!,
-          duration: await getDurationFromGuildId(
-            additionalContent.mediaDuration ? Math.ceil(additionalContent.mediaDuration) : undefined,
-            interaction.guildId!,
-          ),
-          author: interaction.user.username,
+    await prisma.queue.create({
+      data: {
+        content: JSON.stringify({
+          text,
+          media,
+          mediaContentType: 'audio/mpeg',
+          mediaDuration: Math.ceil(additionalContent.mediaDuration),
+        }),
+        type: QueueType.VOCAL,
+        discordGuildId: interaction.guildId!,
+        duration: await getDurationFromGuildId(
+          additionalContent.mediaDuration ? Math.ceil(additionalContent.mediaDuration) : undefined,
+          interaction.guildId!,
+        ),
+        author: interaction.user.username,
           authorId: interaction.user.id,
-          authorImage: interaction.user.avatarURL(),
-        },
-      });
+        authorImage: interaction.user.avatarURL(),
+      },
+    });
     } catch (error) {
       // Gestion d'erreur si l'interaction a expiré
       if (interaction.replied || interaction.deferred) {

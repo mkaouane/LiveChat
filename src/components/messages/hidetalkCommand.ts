@@ -25,29 +25,29 @@ export const hideTalkCommand = () => ({
     await interaction.deferReply({ ephemeral: true });
 
     try {
-      const text = interaction.options.get(rosetty.t('hideTalkCommandOptionText')!)?.value;
-      const voice = interaction.options.get(rosetty.t('hideTalkCommandOptionVoice')!)?.value;
+    const text = interaction.options.get(rosetty.t('hideTalkCommandOptionText')!)?.value;
+    const voice = interaction.options.get(rosetty.t('hideTalkCommandOptionVoice')!)?.value;
 
-      const filePath = await promisedGtts(voice, rosetty.getCurrentLang());
+    const filePath = await promisedGtts(voice, rosetty.getCurrentLang());
 
-      const fileStream = readGttsAsStream(filePath);
+    const fileStream = readGttsAsStream(filePath);
 
       const interactionReply = await interaction.editReply({
-        embeds: [
-          new EmbedBuilder()
-            .setTitle(rosetty.t('success')!)
-            .setDescription(rosetty.t('hideTalkCommandAnswer')!)
-            .setColor(0x2ecc71),
-        ],
-        files: [fileStream],
-      });
+      embeds: [
+        new EmbedBuilder()
+          .setTitle(rosetty.t('success')!)
+          .setDescription(rosetty.t('hideTalkCommandAnswer')!)
+          .setColor(0x2ecc71),
+      ],
+      files: [fileStream],
+    });
       // Le message retourné par editReply est suffisant, inutile de le refetch (évite 10008 Unknown Message)
       const message = interactionReply;
-      const media = message.attachments.first()?.proxyURL;
+    const media = message.attachments.first()?.proxyURL;
 
-      const additionalContent = await getContentInformationsFromUrl(media as string);
+    const additionalContent = await getContentInformationsFromUrl(media as string);
 
-      await deleteGtts(filePath);
+    await deleteGtts(filePath);
 
       const reveal = Math.random() * 100 < env.REVEAL_ANON_PROB;
 
@@ -60,25 +60,25 @@ export const hideTalkCommand = () => ({
       console.log(`[${timestamp}] ⏱️ Durée: ${Math.ceil(additionalContent.mediaDuration)}s`);
       console.log(`[${timestamp}] 🎲 Révélation: ${reveal ? 'OUI (débusqué!)' : 'NON (anonyme)'}`);
 
-      await prisma.queue.create({
-        data: {
-          content: JSON.stringify({
-            text,
-            media,
-            mediaContentType: 'audio/mpeg',
-            mediaDuration: Math.ceil(additionalContent.mediaDuration),
+    await prisma.queue.create({
+      data: {
+        content: JSON.stringify({
+          text,
+          media,
+          mediaContentType: 'audio/mpeg',
+          mediaDuration: Math.ceil(additionalContent.mediaDuration),
             revealed: reveal,
-          }),
-          type: QueueType.VOCAL,
+        }),
+        type: QueueType.VOCAL,
           author: reveal ? interaction.user.username : null,
           authorImage: reveal ? interaction.user.avatarURL() : null,
-          discordGuildId: interaction.guildId!,
-          duration: await getDurationFromGuildId(
-            additionalContent.mediaDuration ? Math.ceil(additionalContent.mediaDuration) : undefined,
-            interaction.guildId!,
-          ),
-        },
-      });
+        discordGuildId: interaction.guildId!,
+        duration: await getDurationFromGuildId(
+          additionalContent.mediaDuration ? Math.ceil(additionalContent.mediaDuration) : undefined,
+          interaction.guildId!,
+        ),
+      },
+    });
     } catch (error) {
       // Gestion d'erreur si l'interaction a expiré
       if (interaction.replied || interaction.deferred) {

@@ -17,6 +17,20 @@ const isTikTokUrl = (url: string): boolean => {
   return url.includes('tiktok.com');
 };
 
+const isTwitterUrl = (url: string): boolean => {
+  return /(?:twitter\.com|x\.com)\//i.test(url);
+};
+
+function parseTwitterUrl(url: string): { screenName: string | null; tweetId: string | null } {
+  try {
+    const m = url.match(/(?:twitter\.com|x\.com)\/([^\/]+)\/status\/(\d+)/i);
+    if (m) {
+      return { screenName: m[1], tweetId: m[2] };
+    }
+  } catch {}
+  return { screenName: null, tweetId: null };
+}
+
 // Fonction pour suivre les redirections TikTok et récupérer le vrai lien
 async function resolveTikTokUrl(url: string): Promise<string> {
   try {
@@ -109,6 +123,40 @@ async function getTikTokVideoInfo(url: string) {
   return null;
 }
 
+async function getTwitterVideoInfo(url: string) {
+  console.log('🔍 Processing Twitter URL:', url);
+
+  const { screenName, tweetId } = parseTwitterUrl(url);
+  if (!screenName || !tweetId) {
+    console.log('❌ Unable to parse Twitter URL');
+    return null;
+  }
+
+  const apiUrl = `https://api.vxtwitter.com/${encodeURIComponent(screenName)}/status/${encodeURIComponent(tweetId)}`;
+  try {
+    const res = await fetch(apiUrl);
+    const data = (await res.json()) as any;
+
+    // Prefer media_extended if present
+    const ext = Array.isArray(data?.media_extended) ? data.media_extended : [];
+    const firstVideo = ext.find((m: any) => m?.type === 'video' && m?.url);
+    const mediaUrl = firstVideo?.url || (Array.isArray(data?.mediaURLs) ? data.mediaURLs[0] : undefined);
+
+    if (mediaUrl) {
+      const durationMs = firstVideo?.duration_millis;
+      const duration = durationMs ? Math.ceil(durationMs / 1000) : undefined;
+      return {
+        contentType: 'video/mp4',
+        mediaDuration: duration,
+        directUrl: mediaUrl,
+      };
+    }
+  } catch (e) {
+    console.log('❌ Twitter API failed:', e);
+  }
+  return null;
+}
+
 export const getContentInformationsFromUrl = async (url: string) => {
   // Transform YouTube Shorts URL if needed
   const transformedUrl = transformYouTubeUrl(url);
@@ -133,6 +181,25 @@ export const getContentInformationsFromUrl = async (url: string) => {
       };
     } else {
       console.log('❌ TikTok info is null');
+    }
+  }
+
+  // Check if it's a Twitter/X URL
+  if (isTwitterUrl(transformedUrl)) {
+    const twitterInfo = await getTwitterVideoInfo(transformedUrl);
+    if (twitterInfo) {
+      console.log('🎯 Twitter info returned:', {
+        contentType: twitterInfo.contentType,
+        mediaDuration: twitterInfo.mediaDuration,
+        directUrl: twitterInfo.directUrl,
+      });
+      return {
+        contentType: twitterInfo.contentType,
+        mediaDuration: twitterInfo.mediaDuration,
+        directUrl: twitterInfo.directUrl,
+      };
+    } else {
+      console.log('❌ Twitter info is null');
     }
   }
 

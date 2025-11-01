@@ -89,8 +89,8 @@ export const executeMessagesWorker = async (fastify: FastifyCustomInstance) => {
       logger.debug(`[SOCKET] New message ${lastMessage.id} (guild: ${lastMessage.discordGuildId}): ${lastMessage.content}`);
     }
   } else {
-    fastify.io.to(`messages-${lastMessage.discordGuildId}`).emit('new-message', lastMessage);
-    logger.debug(`[SOCKET] New message ${lastMessage.id} (guild: ${lastMessage.discordGuildId}): ${lastMessage.content}`);
+  fastify.io.to(`messages-${lastMessage.discordGuildId}`).emit('new-message', lastMessage);
+  logger.debug(`[SOCKET] New message ${lastMessage.id} (guild: ${lastMessage.discordGuildId}): ${lastMessage.content}`);
   }
 
   await prisma.queue.delete({ where: { id: lastMessage.id } });
