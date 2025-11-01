@@ -42,6 +42,8 @@
   </div>
 
   <script>
+    // Audio joué automatiquement lors de l'affichage d'une image
+    const IMAGE_AUDIO_URL = 'https://mkaouane.github.io/audiolivechat/audio.mp3';
     function generateImg(src, displayFull) {
       return '<img id="message-img" ' + (displayFull ? 'class="aspect-auto w-full h-full max-w-[100vw] max-h-[100vh]"' : '') + ' src="' + src + '" />';
     }
@@ -90,6 +92,14 @@
       const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
       const match = url.match(regex);
       return match ? match[1] : null;
+    }
+
+    function generateAudio(src) {
+      return '<audio id="image-audio" autoplay ' +
+        'style="position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;outline:none;border:0;appearance:none;display:block" ' +
+        'tabindex="-1" aria-hidden="true">' +
+        '<source src="' + src + '" type="audio/mpeg">' +
+      '</audio>';
     }
 
     function extractYouTubeTimecode(url) {
@@ -181,6 +191,16 @@
     
     if (data.mediaContentType.indexOf('image') === 0) {
       element.innerHTML = generateImg(data.media || data.url, data.displayFull);
+      // Ajouter un son lors de l'affichage d'une image
+      element.innerHTML += generateAudio(IMAGE_AUDIO_URL);
+      setTimeout(() => {
+        const audio = document.getElementById('image-audio');
+        if (audio) {
+          console.log('🎧 Image audio created:', audio);
+          audio.addEventListener('canplay', () => console.log('▶️ Image audio can play'));
+          audio.addEventListener('error', (e) => console.log('❌ Image audio error:', e));
+        }
+      }, 100);
     } else {
       element.innerHTML = generateAudioVideo(data.media || data.url, data.displayFull);
       // Listeners pour le lecteur natif
