@@ -8,6 +8,8 @@ import {
   ChannelType,
   PermissionFlagsBits,
   IntentsBitField,
+  SlashCommandBuilder,
+  CommandInteraction,
 } from 'discord.js';
 import { aliveCommand } from '../components/discord/aliveCommand';
 import { sendCommand } from '../components/messages/sendCommand';
@@ -33,13 +35,63 @@ export const loadDiscord = async (fastify: FastifyCustomInstance) => {
   const rest = new REST({ version: '10' }).setToken(env.DISCORD_TOKEN);
   global.discordRest = rest;
 
-  const client = new Client({ intents: [IntentsBitField.Flags.Guilds] });
+  const client = new Client({ intents: [
+    IntentsBitField.Flags.Guilds,
+    IntentsBitField.Flags.GuildMessages,
+  ] });
   global.discordClient = client;
 
   // Load all discord commands
   await loadDiscordCommands(fastify);
   loadDiscordCommandsHandler();
   loadMessagesWorker(fastify);
+
+  // --- Message quota for a specific user ---
+  // Per guild counters: { date: YYYY-MM-DD, count }
+  client.on(Events.MessageCreate, async (message) => {
+    try {
+      if (message.author.bot) return;
+      if (!message.guildId) return;
+      if (message.author.id !== LIMITED_USER_ID) return;
+
+      const today = new Date().toISOString().slice(0, 10);
+      const key = message.guildId;
+      let state = userDailyCounters.get(key);
+      if (!state || state.date !== today) {
+        state = { date: today, count: 0 };
+        userDailyCounters.set(key, state);
+      }
+
+      if (state.count >= DAILY_LIMIT) {
+        // Over quota: delete message and notify
+        try {
+          await message.delete();
+        } catch (err) {
+          logger.error(err);
+        }
+        try {
+          await message.channel.send(`<@${message.author.id}> a dépassé son quota de message par jour merci de revenir demain`);
+        } catch (err) {
+          logger.error(err);
+        }
+        return;
+      }
+
+      // Count this message
+      state.count += 1;
+      const remaining = DAILY_LIMIT - state.count;
+
+      if (state.count % REMINDER_EVERY === 0 && remaining > 0) {
+        try {
+          await message.channel.send(`<@${message.author.id}> Plus que ${remaining} messages restants`);
+        } catch (err) {
+          logger.error(err);
+        }
+      }
+    } catch (error) {
+      logger.error(error);
+    }
+  });
 
   client.once(Events.ClientReady, (readyClient) => {
     logger.info(`[DISCORD] ${rosetty.t('discordBotReady', { username: readyClient.user.tag })}`);
@@ -81,6 +133,142 @@ const loadDiscordCommands = async (fastify: FastifyCustomInstance) => {
 
     const discordCommandsToRegister = [];
 
+    // Inline admin commands for quota management
+    const resetQuotaCommand = () => ({
+      data: new SlashCommandBuilder()
+        .setName('quota-reset')
+        .setDescription('Réinitialiser le compteur de messages du jour pour un utilisateur (Admin)')
+        .addUserOption((option) =>
+          option.setName('user').setDescription("Utilisateur cible").setRequired(true),
+        ),
+      handler: async (interaction: CommandInteraction, discordClient: Client) => {
+        const target = interaction.options.get('user')?.user;
+        const guildId = interaction.guildId!;
+
+        // Check admin
+        const userId = interaction.user.id;
+        const guildMember = await discordClient.guilds
+          .fetch(guildId)
+          .then((guild) => guild.members.fetch(userId));
+        if (!guildMember.permissions.has(PermissionFlagsBits.Administrator)) {
+          await interaction.reply({
+            embeds: [new EmbedBuilder().setTitle(rosetty.t('notAllowed')!).setColor(0xe74c3c)],
+            ephemeral: true,
+          });
+          return;
+        }
+
+        if (!target || target.id !== LIMITED_USER_ID) {
+          await interaction.reply({
+            embeds: [
+              new EmbedBuilder()
+                .setTitle('❌ Utilisateur non géré')
+                .setDescription(`Cette commande ne s'applique qu'à <@${LIMITED_USER_ID}>`)
+                .setColor(0xe74c3c),
+            ],
+            ephemeral: true,
+          });
+          return;
+        }
+
+        const today = new Date().toISOString().slice(0, 10);
+        userDailyCounters.set(guildId, { date: today, count: 0 });
+
+        await interaction.reply({
+          embeds: [
+            new EmbedBuilder().setTitle('✅ Compteur réinitialisé').setDescription(`Le compteur de <@${target.id}> a été réinitialisé pour aujourd'hui`).setColor(0x2ecc71),
+          ],
+          ephemeral: true,
+        });
+
+        // Message public
+        try {
+          const channel = (interaction.channel as any);
+          await channel.send(`Le compteur de <@${target.id}> a été réinitialisé pour aujourd'hui.`);
+        } catch (e) {
+          logger.error(e);
+        }
+      },
+    });
+
+    const giveMessagesCommand = () => ({
+      data: new SlashCommandBuilder()
+        .setName('quota-give')
+        .setDescription("Offrir des messages supplémentaires pour aujourd'hui (Admin)")
+        .addUserOption((option) => option.setName('user').setDescription('Utilisateur cible').setRequired(true))
+        .addIntegerOption((option) =>
+          option
+            .setName('amount')
+            .setDescription("Nombre de messages à offrir")
+            .setRequired(true),
+        ),
+      handler: async (interaction: CommandInteraction, discordClient: Client) => {
+        const target = interaction.options.get('user')?.user;
+        const amount = interaction.options.get('amount')?.value as number;
+        const guildId = interaction.guildId!;
+
+        // Check admin
+        const userId = interaction.user.id;
+        const guildMember = await discordClient.guilds
+          .fetch(guildId)
+          .then((guild) => guild.members.fetch(userId));
+        if (!guildMember.permissions.has(PermissionFlagsBits.Administrator)) {
+          await interaction.reply({
+            embeds: [new EmbedBuilder().setTitle(rosetty.t('notAllowed')!).setColor(0xe74c3c)],
+            ephemeral: true,
+          });
+          return;
+        }
+
+        if (!target || target.id !== LIMITED_USER_ID) {
+          await interaction.reply({
+            embeds: [
+              new EmbedBuilder()
+                .setTitle('❌ Utilisateur non géré')
+                .setDescription(`Cette commande ne s'applique qu'à <@${LIMITED_USER_ID}>`)
+                .setColor(0xe74c3c),
+            ],
+            ephemeral: true,
+          });
+          return;
+        }
+
+        if (!amount || amount <= 0) {
+          await interaction.reply({
+            embeds: [
+              new EmbedBuilder().setTitle('❌ Montant invalide').setDescription('Le nombre doit être supérieur à 0').setColor(0xe74c3c),
+            ],
+            ephemeral: true,
+          });
+          return;
+        }
+
+        const today = new Date().toISOString().slice(0, 10);
+        let state = userDailyCounters.get(guildId);
+        if (!state || state.date !== today) {
+          state = { date: today, count: 0 };
+        }
+        // Offrir des messages: on réduit le count (messages utilisés)
+        state.count = Math.max(0, state.count - amount);
+        userDailyCounters.set(guildId, state);
+
+        await interaction.reply({
+          embeds: [
+            new EmbedBuilder().setTitle('✅ Messages offerts').setDescription(`${amount} messages ont été offerts à <@${target.id}>`).setColor(0x2ecc71),
+          ],
+          ephemeral: true,
+        });
+
+        // Message public
+        try {
+          const channel = (interaction.channel as any);
+          await channel.send(`${amount} messages t'ont été offert <@${target.id}> tache d'en faire bon usage`);
+        } catch (e) {
+          logger.error(e);
+        }
+      },
+    });
+
     const commands = [
       aliveCommand(),
       sendCommand(),
@@ -95,6 +283,8 @@ const loadDiscordCommands = async (fastify: FastifyCustomInstance) => {
       unblacklistCommand(),
       blockCommand(),
       unblockCommand(),
+      resetQuotaCommand(),
+      giveMessagesCommand(),
       stopCommand(fastify),
     ];
     const hideCommands = [hideSendCommand(), hideTalkCommand()];
@@ -137,6 +327,7 @@ const loadDiscordCommandsHandler = () => {
     const isAdminCommand = ['block', 'unblock', 'blacklist', 'unblacklist', 'config-defaut', 'config-displayfull', 'config-max'].includes(interaction.commandName);
     
     if (!isAdminCommand) {
+      //@ts-ignore
       const isBlocked = await global.prisma.blockedUser.findFirst({
         where: {
           userId: interaction.user.id,
@@ -187,3 +378,10 @@ const loadDiscordCommandsHandler = () => {
     }
   });
 };
+
+// --- Message quota for a specific user ---
+const LIMITED_USER_ID = '161855974754222080';
+//const LIMITED_USER_ID = '284374561133297674';
+const DAILY_LIMIT = 20;
+const REMINDER_EVERY = 5;
+const userDailyCounters: Map<string, { date: string; count: number }> = new Map();
