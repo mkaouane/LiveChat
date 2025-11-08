@@ -62,7 +62,7 @@ export const loadDiscord = async (fastify: FastifyCustomInstance) => {
         userDailyCounters.set(key, state);
       }
 
-      if (state.count >= DAILY_LIMIT) {
+      if (state.count >= getDailyLimit(message.guildId)) {
         // Over quota: delete message and notify
         try {
           await message.delete();
@@ -79,7 +79,7 @@ export const loadDiscord = async (fastify: FastifyCustomInstance) => {
 
       // Count this message
       state.count += 1;
-      const remaining = DAILY_LIMIT - state.count;
+      const remaining = getDailyLimit(message.guildId) - state.count;
 
       if (state.count % REMINDER_EVERY === 0 && remaining > 0) {
         try {
@@ -269,6 +269,52 @@ const loadDiscordCommands = async (fastify: FastifyCustomInstance) => {
       },
     });
 
+    const setLimitCommand = () => ({
+      data: new SlashCommandBuilder()
+        .setName('quota-setlimit')
+        .setDescription('Définir la limite quotidienne de messages (Admin)')
+        .addIntegerOption((option) =>
+          option.setName('amount').setDescription('Nouvelle limite quotidienne (par défaut 20)').setRequired(true),
+        ),
+      handler: async (interaction: CommandInteraction, discordClient: Client) => {
+        const amount = interaction.options.get('amount')?.value as number;
+        const guildId = interaction.guildId!;
+
+        // Admin check
+        const userId = interaction.user.id;
+        const guildMember = await discordClient.guilds
+          .fetch(guildId)
+          .then((guild) => guild.members.fetch(userId));
+        if (!guildMember.permissions.has(PermissionFlagsBits.Administrator)) {
+          await interaction.reply({
+            embeds: [new EmbedBuilder().setTitle(rosetty.t('notAllowed')!).setColor(0xe74c3c)],
+            ephemeral: true,
+          });
+          return;
+        }
+
+        if (!amount || amount <= 0) {
+          await interaction.reply({
+            embeds: [new EmbedBuilder().setTitle('❌ Limite invalide').setDescription('La limite doit être > 0').setColor(0xe74c3c)],
+            ephemeral: true,
+          });
+          return;
+        }
+
+        guildDailyLimit.set(guildId, Math.max(1, Math.floor(amount)));
+
+        await interaction.reply({
+          embeds: [
+            new EmbedBuilder()
+              .setTitle('✅ Limite mise à jour')
+              .setDescription(`La limite quotidienne est maintenant de ${guildDailyLimit.get(guildId)} messages.`)
+              .setColor(0x2ecc71),
+          ],
+          ephemeral: true,
+        });
+      },
+    });
+
     const commands = [
       aliveCommand(),
       sendCommand(),
@@ -283,6 +329,7 @@ const loadDiscordCommands = async (fastify: FastifyCustomInstance) => {
       unblacklistCommand(),
       blockCommand(),
       unblockCommand(),
+      setLimitCommand(),
       resetQuotaCommand(),
       giveMessagesCommand(),
       stopCommand(fastify),
@@ -382,6 +429,8 @@ const loadDiscordCommandsHandler = () => {
 // --- Message quota for a specific user ---
 const LIMITED_USER_ID = '161855974754222080';
 //const LIMITED_USER_ID = '284374561133297674';
-const DAILY_LIMIT = 20;
 const REMINDER_EVERY = 5;
 const userDailyCounters: Map<string, { date: string; count: number }> = new Map();
+const guildDailyLimit: Map<string, number> = new Map();
+const DEFAULT_DAILY_LIMIT = 20;
+const getDailyLimit = (guildId: string) => guildDailyLimit.get(guildId) ?? DEFAULT_DAILY_LIMIT;
