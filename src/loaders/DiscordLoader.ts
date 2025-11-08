@@ -427,7 +427,7 @@ const loadDiscordCommandsHandler = () => {
 };
 
 // --- Message quota for a specific user ---
-const LIMITED_USER_ID = '161855974754222080';
+const LIMITED_USER_ID = '1119919925826441257';
 //const LIMITED_USER_ID = '284374561133297674';
 const REMINDER_EVERY = 5;
 const userDailyCounters: Map<string, { date: string; count: number }> = new Map();
